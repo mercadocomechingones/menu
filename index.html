@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Directorio de Negocios</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+<style>
+:root {
+    --verde-fresco: #4CAF50;
+    --verde-oscuro: #388E3C;
+    --naranja-acento: #FF9800;
+    --fondo-gris: #f8f9fa;
+    --texto-principal: #333;
+    --sombra-suave: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+body { font-family: 'Arial', sans-serif; margin:0; padding:0; background-color: var(--fondo-gris); color: var(--texto-principal);}
+header { background-color: var(--verde-fresco); color:white; padding:20px; text-align:center; box-shadow:0 2px 4px rgba(0,0,0,0.1);}
+.container { display:flex; max-width:1200px; margin:20px auto; padding:0 15px;}
+.sidebar { width:280px; margin-right:30px; background:white; padding:20px; border-radius:8px; box-shadow:var(--sombra-suave); position: sticky; top:20px;}
+.sidebar h3 { border-bottom:2px solid #eee; padding-bottom:10px; margin-top:0; color:#343a40; }
+.filter-group { margin-bottom:20px; }
+.filter-group label { display:block; margin-bottom:8px; font-weight:bold; color:#495057; }
+.filter-group select, .filter-group input { width:100%; padding:10px; border:1px solid #ced4da; border-radius:4px; background-color:#fff; box-sizing:border-box; font-size:1rem; }
+
+.negocios-list { flex-grow:1; display:grid; grid-template-columns: repeat(auto-fill,minmax(300px,1fr)); gap:25px;}
+.negocio-card { background:white; border-radius:12px; box-shadow:var(--sombra-suave); overflow:hidden; transition: transform 0.2s; position:relative; cursor:pointer;}
+.negocio-card:hover { transform:translateY(-5px); box-shadow:0 8px 16px rgba(0,0,0,0.15);}
+.card-header { display:flex; align-items:center; padding:15px; border-bottom:1px solid #eee;}
+.logo { width:60px; height:60px; border-radius:50%; object-fit:cover; margin-right:15px; border:2px solid var(--verde-fresco);}
+.info-principal h2 { margin:0; font-size:1.4rem; color:#343a40; }
+.info-principal .rubro { font-size:0.9rem; color: var(--naranja-acento); font-weight:bold; }
+
+.card-body { padding:15px;}
+.card-body p { margin:5px 0; font-size:0.95rem; color:#555; }
+.card-body i { margin-right:8px; color:#495057; }
+.card-body i.fas.fa-credit-card { color: #007bff; }
+
+.horarios-concisos { font-size: 0.85rem; font-style: normal; color: #555; line-height: 1.4; }
+.horarios-concisos span { display: block; }
+
+.estado { display:inline-block; padding:5px 10px; border-radius:4px; font-weight:bold; text-transform:uppercase; font-size:0.8rem; margin-top:10px;}
+.estado.abierto { background-color: var(--verde-fresco); color:white; box-shadow:0 0 5px rgba(76,175,80,0.5);}
+.estado.cerrado { background-color: #dc3545; color:white; box-shadow:0 0 5px rgba(220,53,69,0.5);}
+
+.delivery-icon { position:absolute; top:15px; right:15px; font-size:1.8rem; color:var(--verde-oscuro); opacity:0.8; transition:opacity 0.2s;}
+.delivery-icon.no-delivery { color:#bbb; opacity:0.4;}
+.delivery-icon:hover { opacity:1;}
+
+#spinner {
+    position: fixed;
+    top:0; left:0; width:100%; height:100%;
+    background: rgba(255,255,255,0.8);
+    display:flex; align-items:center; justify-content:center;
+    font-size:2rem; color: var(--verde-fresco); z-index:9999;
+}
+
+.page-buttons { text-align:center; margin:20px 0; }
+.page-buttons button { margin:0 5px; padding:8px 12px; border:none; border-radius:5px; background:var(--verde-fresco); color:white; cursor:pointer;}
+.page-buttons button.active { background: var(--verde-oscuro); }
+
+@media(max-width:992px){ .container{flex-direction:column;} .sidebar{width:100%; margin-right:0; margin-bottom:20px; position:static;} .negocios-list{grid-template-columns: repeat(auto-fill,minmax(280px,1fr));} }
+</style>
+</head>
+<body>
+
+<div id="spinner"><i class="fas fa-spinner fa-spin"></i> Cargando...</div>
+
+<header>
+    <h1>Directorio Local</h1>
+    <p>Encontrá los mejores negocios cerca de vos.</p>
+</header>
+
+<div class="container">
+    <aside class="sidebar">
+        <h3>Filtros de Búsqueda</h3>
+        <div class="filter-group">
+            <label for="busqueda-nombre">Buscar por Nombre</label>
+            <input type="text" id="busqueda-nombre" placeholder="Ej: El Fresquito">
+        </div>
+        <div class="filter-group">
+            <label for="filtro-categoria">Categoría</label>
+            <select id="filtro-categoria">
+                <option value="todos">Todos</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label for="filtro-alfabetico">Ordenar por Nombre</label>
+            <select id="filtro-alfabetico">
+                <option value="sin-orden">Sin Orden</option>
+                <option value="a-z">A - Z</option>
+                <option value="z-a">Z - A</option>
+            </select>
+        </div>
+    </aside>
+
+    <main class="negocios-list" id="negocios-container">
+        <!-- Las cards se generarán dinámicamente desde el Sheet -->
+    </main>
+</div>
+
+<div class="page-buttons" id="paginador"></div>
+
+<script>
+let allCards = [];
+let currentPage = 1;
+const cardsPerPage = 15;
+
+function checkHorario(card){
+    const ahora = new Date();
+    const dia = ahora.getDay();
+    const horaMinutos = ahora.getHours()*60 + ahora.getMinutes();
+    const dias = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
+    const hoy = card.getAttribute('data-' + dias[dia].toLowerCase()) || 'Cerrado';
+    if(hoy.toLowerCase().includes('cerrado')) return {estado:'cerrado', texto:'Cerrado'};
+    const bloques = hoy.split(',').map(b=>b.trim());
+    for(const b of bloques){
+        let [ini, fin] = b.split('-');
+        if(!ini || !fin) continue;
+        if(!ini.includes(':')) ini += ':00';
+        if(!fin.includes(':')) fin += ':00';
+        const [hI,mI]=ini.split(':').map(Number); 
+        const [hF,mF]=fin.split(':').map(Number);
+        let inicio = hI*60+mI; 
+        let cierre = hF*60+mF; 
+        if(cierre < inicio) cierre += 1440;
+        if(horaMinutos >= inicio && horaMinutos < cierre) return {estado:'abierto', texto:`Abierto hasta ${fin}`};
+    }
+    return {estado:'cerrado', texto:'Cerrado'};
+}
+
+function actualizarEstados(){
+    allCards.forEach(card=>{
+        const res = checkHorario(card);
+        const estadoSpan = card.querySelector('.estado');
+        estadoSpan.textContent = res.texto;
+        estadoSpan.classList.remove('abierto','cerrado');
+        estadoSpan.classList.add(res.estado);
+        let horariosTexto = "";
+        ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"].forEach(dia=>{
+            horariosTexto += `<span><strong>${dia}:</strong> ${card.getAttribute('data-'+dia.toLowerCase())}</span>`;
+        });
+        card.querySelector('.horarios-concisos').innerHTML = horariosTexto;
+    });
+}
+
+function mostrarPagina(cards, page=1){
+    const container = document.getElementById('negocios-container');
+    container.innerHTML = '';
+    const start = (page-1)*cardsPerPage;
+    const end = start+cardsPerPage;
+    const pageCards = cards.slice(start, end);
+    pageCards.forEach(c=>container.appendChild(c));
+
+    const pagDiv = document.getElementById('paginador');
+    pagDiv.innerHTML = '';
+    const totalPages = Math.ceil(cards.length/cardsPerPage);
+    for(let i=1;i<=totalPages;i++){
+        const btn = document.createElement('button');
+        btn.textContent = i;
+        if(i===page) btn.classList.add('active');
+        btn.addEventListener('click',()=>{currentPage=i; mostrarPagina(cards,currentPage);});
+        pagDiv.appendChild(btn);
+    }
+}
+
+function aplicarFiltros(){
+    let filtrados = allCards;
+    const cat = document.getElementById('filtro-categoria').value.toLowerCase();
+    const busq = document.getElementById('busqueda-nombre').value.toLowerCase();
+
+    if(cat !== 'todos') filtrados = filtrados.filter(c=>c.getAttribute('data-rubro') === cat);
+    if(busq!=='') filtrados = filtrados.filter(c=>c.querySelector('h2').textContent.toLowerCase().includes(busq));
+
+    // Primero abiertos
+    const abiertos = filtrados.filter(c=>c.querySelector('.estado').classList.contains('abierto'));
+    const cerrados = filtrados.filter(c=>!c.querySelector('.estado').classList.contains('abierto'));
+    // Mezclar cerrados aleatoriamente
+    for(let i=cerrados.length-1;i>0;i--){
+        const j=Math.floor(Math.random()*(i+1));
+        [cerrados[i], cerrados[j]]=[cerrados[j], cerrados[i]];
+    }
+    filtrados = abiertos.concat(cerrados);
+
+    mostrarPagina(filtrados, currentPage);
+}
+
+// Placeholder para logos
+function cargarLogo(img){
+    img.onerror = ()=> img.src = 'https://via.placeholder.com/60?text=Logo';
+}
+
+const scriptURL = "https://script.google.com/macros/s/AKfycbxfJ4LGNkzKD6UT7QsmdnkNLKprCpZVbZbzDWkHgp2H9TJwhAsjuj3mYufsLlSKeu95/exec";
+
+async function cargarNegocios() {
+    const res = await fetch(scriptURL);
+    const negocios = await res.json();
+
+    const container = document.getElementById('negocios-container');
+    container.innerHTML = '';
+
+    negocios.forEach(n=>{
+        const card = document.createElement('div');
+        card.classList.add('negocio-card');
+        card.setAttribute('data-rubro', n.Rubro.toLowerCase());
+        card.setAttribute('data-delivery', n.Delivery);
+        card.setAttribute('data-lunes', n.Lunes);
+        card.setAttribute('data-martes', n.Martes);
+        card.setAttribute('data-miércoles', n.Miércoles);
+        card.setAttribute('data-jueves', n.Jueves);
+        card.setAttribute('data-viernes', n.Viernes);
+        card.setAttribute('data-sábado', n.Sábado);
+        card.setAttribute('data-domingo', n.Domingo);
+        card.setAttribute('data-url', n.URL);
+
+        const formasPago = n["Formas de pago"] || n["Formas de Pago"] || 'No especificado';
+
+        card.innerHTML = `
+        <div class="card-header">
+            <img src="${n["Logo URL"]}" alt="Logo ${n.Nombre}" class="logo">
+            <div class="info-principal">
+                <h2>${n.Nombre}</h2>
+                <span class="rubro">${n.Rubro}</span>
+            </div>
+        </div>
+        <div class="card-body">
+            <p><i class="fas fa-map-marker-alt"></i> ${n.Domicilio}</p>
+            <p class="horarios-concisos"></p>
+            <p><i class="fas fa-credit-card"></i> ${formasPago}</p>
+            <span class="estado">Cargando...</span>
+        </div>
+        <i class="fas fa-motorcycle delivery-icon ${n.Delivery?'':'no-delivery'}" title="${n.Delivery?'Tiene Delivery':'No tiene Delivery'}"></i>
+        `;
+        cargarLogo(card.querySelector('.logo'));
+        card.addEventListener('click', ()=> window.open(n.URL,'_blank'));
+        container.appendChild(card);
+    });
+
+    allCards = Array.from(document.querySelectorAll('.negocio-card'));
+    actualizarEstados();
+
+    // Categorías dinámicas
+    const selectCat = document.getElementById('filtro-categoria');
+    const categorias = new Set();
+    allCards.forEach(card=> categorias.add(card.getAttribute('data-rubro')));
+    Array.from(categorias).sort().forEach(cat=>{
+        if(!Array.from(selectCat.options).some(o=>o.value===cat)){
+            const option = document.createElement('option');
+            option.value = cat;
+            option.textContent = cat.charAt(0).toUpperCase() + cat.slice(1);
+            selectCat.appendChild(option);
+        }
+    });
+
+    aplicarFiltros();
+    document.getElementById('spinner').style.display = 'none';
+}
+
+document.addEventListener('DOMContentLoaded', ()=>{
+    cargarNegocios();
+    document.getElementById('filtro-categoria').addEventListener('change', aplicarFiltros);
+    document.getElementById('busqueda-nombre').addEventListener('input', aplicarFiltros);
+});
+</script>
+
+</body>
+</html>
