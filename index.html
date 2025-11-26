@@ -109,14 +109,6 @@ header { background-color: var(--verde-fresco); color:white; padding:20px; text-
                 <option value="todos">Todos</option>
             </select>
         </div>
-        <div class="filter-group">
-            <label for="filtro-alfabetico">Ordenar por Nombre</label>
-            <select id="filtro-alfabetico">
-                <option value="sin-orden">Sin Orden</option>
-                <option value="a-z">A - Z</option>
-                <option value="z-a">Z - A</option>
-            </select>
-        </div>
     </aside>
 
     <main class="negocios-list" id="negocios-container"></main>
@@ -195,16 +187,20 @@ function aplicarFiltros(){
     if(cat !== 'todos') filtrados = filtrados.filter(c=>c.getAttribute('data-rubro') === cat);
     if(busq!=='') filtrados = filtrados.filter(c=>c.querySelector('h2').textContent.toLowerCase().includes(busq));
 
+    // Aleatorio por abierto / cerrado
     const abiertos = filtrados.filter(c=>c.querySelector('.estado').classList.contains('abierto'));
     const cerrados = filtrados.filter(c=>!c.querySelector('.estado').classList.contains('abierto'));
 
+    for(let i=abiertos.length-1;i>0;i--){
+        const j=Math.floor(Math.random()*(i+1));
+        [abiertos[i], abiertos[j]]=[abiertos[j], abiertos[i]];
+    }
     for(let i=cerrados.length-1;i>0;i--){
         const j=Math.floor(Math.random()*(i+1));
         [cerrados[i], cerrados[j]]=[cerrados[j], cerrados[i]];
     }
 
     filtrados = abiertos.concat(cerrados);
-
     mostrarPagina(filtrados, currentPage);
 }
 
@@ -251,7 +247,6 @@ async function cargarNegocios() {
                 <p class="horarios-concisos"></p>
                 <p><i class="fas fa-credit-card"></i> ${formasPago}</p>
                 <span class="estado">Cargando...</span>
-
                 ${n.Banner && n.Banner.trim() !== "" 
                     ? `<div class="banner-simple"><i class="fas fa-bullhorn"></i>${n.Banner}</div>` 
                     : ""
