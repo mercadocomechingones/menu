@@ -60,7 +60,31 @@ header { background-color: var(--verde-fresco); color:white; padding:20px; text-
 .page-buttons button { margin:0 5px; padding:8px 12px; border:none; border-radius:5px; background:var(--verde-fresco); color:white; cursor:pointer;}
 .page-buttons button.active { background: var(--verde-oscuro); }
 
-@media(max-width:992px){ .container{flex-direction:column;} .sidebar{width:100%; margin-right:0; margin-bottom:20px; position:static;} .negocios-list{grid-template-columns: repeat(auto-fill,minmax(280px,1fr));} }
+.banner-simple {
+    background: #ffe08c;
+    color: #000;
+    padding: 8px 12px;
+    margin-top: 10px;
+    border-radius: 6px;
+    font-weight: bold;
+    font-size: 0.9rem;
+    text-align: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+.banner-simple i {
+    color: #d35400;
+    font-size: 1.1rem;
+}
+
+@media(max-width:992px){
+    .container{flex-direction:column;}
+    .sidebar{width:100%; margin-right:0; margin-bottom:20px; position:static;}
+    .negocios-list{grid-template-columns: repeat(auto-fill,minmax(280px,1fr));}
+}
 </style>
 </head>
 <body>
@@ -95,9 +119,7 @@ header { background-color: var(--verde-fresco); color:white; padding:20px; text-
         </div>
     </aside>
 
-    <main class="negocios-list" id="negocios-container">
-        <!-- Las cards se generarán dinámicamente desde el Sheet -->
-    </main>
+    <main class="negocios-list" id="negocios-container"></main>
 </div>
 
 <div class="page-buttons" id="paginador"></div>
@@ -173,14 +195,14 @@ function aplicarFiltros(){
     if(cat !== 'todos') filtrados = filtrados.filter(c=>c.getAttribute('data-rubro') === cat);
     if(busq!=='') filtrados = filtrados.filter(c=>c.querySelector('h2').textContent.toLowerCase().includes(busq));
 
-    // Primero abiertos
     const abiertos = filtrados.filter(c=>c.querySelector('.estado').classList.contains('abierto'));
     const cerrados = filtrados.filter(c=>!c.querySelector('.estado').classList.contains('abierto'));
-    // Mezclar cerrados aleatoriamente
+
     for(let i=cerrados.length-1;i>0;i--){
         const j=Math.floor(Math.random()*(i+1));
         [cerrados[i], cerrados[j]]=[cerrados[j], cerrados[i]];
     }
+
     filtrados = abiertos.concat(cerrados);
 
     mostrarPagina(filtrados, currentPage);
@@ -217,21 +239,28 @@ async function cargarNegocios() {
         const formasPago = n["Formas de pago"] || n["Formas de Pago"] || 'No especificado';
 
         card.innerHTML = `
-        <div class="card-header">
-            <img src="${n["Logo URL"]}" alt="Logo ${n.Nombre}" class="logo">
-            <div class="info-principal">
-                <h2>${n.Nombre}</h2>
-                <span class="rubro">${n.Rubro}</span>
+            <div class="card-header">
+                <img src="${n["Logo URL"]}" alt="Logo ${n.Nombre}" class="logo">
+                <div class="info-principal">
+                    <h2>${n.Nombre}</h2>
+                    <span class="rubro">${n.Rubro}</span>
+                </div>
             </div>
-        </div>
-        <div class="card-body">
-            <p><i class="fas fa-map-marker-alt"></i> ${n.Domicilio}</p>
-            <p class="horarios-concisos"></p>
-            <p><i class="fas fa-credit-card"></i> ${formasPago}</p>
-            <span class="estado">Cargando...</span>
-        </div>
-        <i class="fas fa-motorcycle delivery-icon ${n.Delivery?'':'no-delivery'}" title="${n.Delivery?'Tiene Delivery':'No tiene Delivery'}"></i>
+            <div class="card-body">
+                <p><i class="fas fa-map-marker-alt"></i> ${n.Domicilio}</p>
+                <p class="horarios-concisos"></p>
+                <p><i class="fas fa-credit-card"></i> ${formasPago}</p>
+                <span class="estado">Cargando...</span>
+
+                ${n.Banner && n.Banner.trim() !== "" 
+                    ? `<div class="banner-simple"><i class="fas fa-bullhorn"></i>${n.Banner}</div>` 
+                    : ""
+                }
+            </div>
+            <i class="fas fa-motorcycle delivery-icon ${n.Delivery?'':'no-delivery'}"
+                title="${n.Delivery?'Tiene Delivery':'No tiene Delivery'}"></i>
         `;
+
         cargarLogo(card.querySelector('.logo'));
         card.addEventListener('click', ()=> window.open(n.URL,'_blank'));
         container.appendChild(card);
@@ -240,7 +269,6 @@ async function cargarNegocios() {
     allCards = Array.from(document.querySelectorAll('.negocio-card'));
     actualizarEstados();
 
-    // Categorías dinámicas
     const selectCat = document.getElementById('filtro-categoria');
     const categorias = new Set();
     allCards.forEach(card=> categorias.add(card.getAttribute('data-rubro')));
